@@ -28,17 +28,14 @@ export default function useChat(roomId) {
     return () => socket.off("receive-message");
   }, []);
 
-  const sendMessage = (message) => {
-    if (!message.trim()) return;
-
-    const data = {
+  const sendMessage = (msg) => {
+    socket.emit("send-message", {
       roomId,
+      message: msg,
       senderId: socket.id,
-      message,
-      timestamp: new Date().toLocaleTimeString(),
-    };
-
-    socket.emit("send-message", data);
+      name: localStorage.getItem("vc_name") || "User",
+      avatar: localStorage.getItem("vc_avatar") || null
+    });
   };
 
   return { messages, sendMessage };

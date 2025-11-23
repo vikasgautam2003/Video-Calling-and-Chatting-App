@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from 'react';
@@ -9,11 +8,10 @@ export default function Home() {
   const router = useRouter();
   const [roomId, setRoomId] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [avatarData, setAvatarData] = useState(null); // base64
+  const [avatarData, setAvatarData] = useState(null);
   const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
-    // load saved avatar/name
     const savedAvatar = localStorage.getItem('vc_avatar');
     const savedName = localStorage.getItem('vc_name');
     if (savedAvatar) setAvatarData(savedAvatar);
@@ -37,7 +35,6 @@ export default function Home() {
   };
 
   const createRoom = () => {
-    // save displayName
     if (displayName) localStorage.setItem('vc_name', displayName);
     const id = uuidv4();
     router.push(`/room/${id}`);
@@ -53,33 +50,33 @@ export default function Home() {
     if (!name) return null;
     const parts = name.trim().split(/\s+/);
     const initials = (parts[0][0] || '') + (parts[1]?.[0] || '');
-    // small CSS circle with initials will be rendered if no image
     return initials.toUpperCase();
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white px-4">
-      <h1 className="text-4xl font-bold mb-6">Video Chat App</h1>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white px-4">
+      <h1 className="text-5xl font-extrabold mb-10 tracking-wide bg-gradient-to-r from-blue-400 to-purple-500 text-transparent bg-clip-text">
+        Start or Join a Meeting
+      </h1>
 
-      <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="relative">
+      <div className="backdrop-blur-xl bg-white/5 border border-white/10 p-8 rounded-2xl shadow-2xl w-full max-w-lg transition-all">
+        <div className="flex items-center gap-6 mb-6">
+          <div className="relative group">
             {avatarData ? (
               <img
                 src={avatarData}
                 alt="avatar"
-                className="w-16 h-16 rounded-full object-cover border-2 border-white/20"
+                className="w-20 h-20 rounded-full object-cover border-4 border-white/20 shadow-lg"
               />
             ) : (
-              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-xl font-semibold">
+              <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center text-3xl font-bold border-2 border-white/10 shadow-lg">
                 {makeInitialsAvatar(displayName) || 'U'}
               </div>
             )}
             {avatarData && (
               <button
                 onClick={handleAvatarRemove}
-                className="absolute -right-1 -top-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center"
-                title="Remove avatar"
+                className="absolute -right-2 -top-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-full w-7 h-7 flex items-center justify-center shadow-md"
               >
                 ×
               </button>
@@ -90,10 +87,10 @@ export default function Home() {
             <input
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Your name (optional)"
-              className="w-full p-3 rounded bg-gray-700 border border-gray-600 text-white focus:outline-none focus:border-blue-500"
+              placeholder="Your display name"
+              className="w-full p-4 rounded-lg bg-gray-800/60 border border-gray-700 text-white focus:outline-none focus:border-blue-600"
             />
-            <div className="mt-2 text-xs text-gray-400">This name & avatar will be shown to others in the room.</div>
+            <div className="mt-2 text-xs text-gray-400">Visible to participants.</div>
           </div>
         </div>
 
@@ -101,11 +98,14 @@ export default function Home() {
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => {
-            e.preventDefault(); setDragOver(false);
+            e.preventDefault();
+            setDragOver(false);
             const f = e.dataTransfer.files?.[0];
             if (f) handleFile(f);
           }}
-          className={`w-full mb-4 p-3 rounded border border-dashed ${dragOver ? 'border-blue-500' : 'border-gray-600'} flex items-center gap-3 cursor-pointer`}
+          className={`w-full mb-6 p-4 rounded-xl border-2 border-dashed ${
+            dragOver ? 'border-blue-500 bg-blue-500/10' : 'border-gray-600 bg-gray-800/40'
+          } flex items-center justify-center gap-3 cursor-pointer text-gray-300 hover:border-blue-500 transition`}
         >
           <input
             type="file"
@@ -113,38 +113,43 @@ export default function Home() {
             onChange={(e) => handleFile(e.target.files?.[0])}
             className="hidden"
           />
-          <div className="text-sm text-gray-300">Upload avatar (drag & drop or click)</div>
+          Upload or drag avatar
         </label>
 
         <button
           onClick={createRoom}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded mb-3 transition"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-4 rounded-xl text-lg shadow-lg transition mb-5"
         >
           Create New Meeting
         </button>
 
-        <div className="flex items-center my-3">
-          <div className="flex-grow border-t border-gray-600"></div>
-          <span className="mx-3 text-gray-400">OR</span>
-          <div className="flex-grow border-t border-gray-600"></div>
+        <div className="flex items-center my-5">
+          <div className="flex-grow border-t border-gray-700"></div>
+          <span className="mx-4 text-gray-400">OR</span>
+          <div className="flex-grow border-t border-gray-700"></div>
         </div>
 
-        <form onSubmit={joinRoom} className="flex flex-col gap-3">
+        <form onSubmit={joinRoom} className="flex flex-col gap-4">
           <input
             type="text"
-            placeholder="Enter Room ID"
-            className="p-3 rounded bg-gray-700 border border-gray-600 text-white focus:outline-none focus:border-blue-500"
+            placeholder="Enter Meeting ID"
+            className="p-4 rounded-xl bg-gray-800/60 border border-gray-700 text-white focus:outline-none focus:border-blue-600"
             value={roomId}
             onChange={(e) => setRoomId(e.target.value)}
           />
           <button
             type="submit"
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded transition"
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-4 rounded-xl text-lg shadow-lg transition"
           >
-            Join Room
+            Join Meeting
           </button>
         </form>
       </div>
     </div>
   );
 }
+
+
+
+
+

@@ -54,15 +54,14 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("send-message", async (messageData) => {
-    try {
-      const newMessage = new Message(messageData);
-      await newMessage.save();
-      io.to(messageData.roomId).emit("receive-message", messageData);
-    } catch (err) {
-      console.log("Message Save Error:", err);
-    }
+  socket.on("send-message", (data) => {
+  io.to(data.roomId).emit("receive-message", {
+    message: data.message,
+    senderId: data.senderId,
+    name: data.name,
+    avatar: data.avatar
   });
+});
 
   socket.on("sending-signal", (payload) => {
     io.to(payload.userToSignal).emit("user-joined", {
