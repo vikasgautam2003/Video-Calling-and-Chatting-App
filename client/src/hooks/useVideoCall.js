@@ -1,3 +1,10 @@
+
+
+
+
+
+
+
 import { useEffect, useRef, useState } from "react";
 import Peer from "simple-peer";
 import { socket } from "@/lib/socket";
@@ -14,45 +21,94 @@ export default function useVideoCall(roomId) {
   useEffect(() => {
     if (!roomId) return;
 
+    const avatar = localStorage.getItem("vc_avatar") || null;
+    const name = localStorage.getItem("vc_name") || null;
+
     navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
       setMyStream(stream);
+      if (myVideoRef.current) myVideoRef.current.srcObject = stream;
 
-      if (myVideoRef.current) {
-        myVideoRef.current.srcObject = stream;
-      }
+      socket.emit("join-room", { roomId, userId: socket.id, avatar, name });
 
-      socket.emit("join-room", roomId, socket.id);
+      socket.on("user-connected", (user) => {
+        const peer = createPeer(user.userId, socket.id, stream);
 
-      socket.on("user-connected", (userId) => {
-        const peer = createPeer(userId, socket.id, stream);
-        peersRef.current.push({ peerID: userId, peer });
-        setPeers((prev) => [...prev, { peerID: userId, peer }]);
-      });
+        peersRef.current.push({
+          peerID: user.userId,
+          peer,
+          avatar: user.avatar,
+          name: user.name,
+          isVideoOff: false,
+        });
 
-      socket.on("signal", ({ sender, signal }) => {
-        const peerObj = peersRef.current.find((p) => p.peerID === sender);
-        if (peerObj) peerObj.peer.signal(signal);
+        setPeers((prev) => [
+          ...prev,
+          {
+            peerID: user.userId,
+            peer,
+            avatar: user.avatar,
+            name: user.name,
+            isVideoOff: false,
+          },
+        ]);
       });
     });
 
     return () => {
       socket.off("user-connected");
-      socket.off("signal");
     };
   }, [roomId]);
 
   useEffect(() => {
     if (!myStream) return;
 
-    socket.on("user-joined", ({ signal, callerID }) => {
+    socket.on("user-joined", ({ signal, callerID, callerAvatar, callerName }) => {
       const peer = addPeer(signal, callerID, myStream);
-      peersRef.current.push({ peerID: callerID, peer });
-      setPeers((prev) => [...prev, { peerID: callerID, peer }]);
+
+      peersRef.current.push({
+        peerID: callerID,
+        peer,
+        avatar: callerAvatar,
+        name: callerName,
+        isVideoOff: false,
+      });
+
+      setPeers((prev) => [
+        ...prev,
+        {
+          peerID: callerID,
+          peer,
+          avatar: callerAvatar,
+          name: callerName,
+          isVideoOff: false,
+        },
+      ]);
     });
 
-    socket.on("receiving-returned-signal", ({ id, signal }) => {
+    socket.on("receiving-returned-signal", ({ id, signal, avatar, name }) => {
       const peerObj = peersRef.current.find((p) => p.peerID === id);
       if (peerObj) peerObj.peer.signal(signal);
+
+      if (peerObj) {
+        peerObj.avatar = avatar;
+        peerObj.name = name;
+      }
+
+      setPeers((prev) =>
+        prev.map((p) => (p.peerID === id ? { ...p, avatar, name } : p))
+      );
+    });
+
+    socket.on("peer-camera-toggled", ({ userId, isVideoOff }) => {
+      peersRef.current = peersRef.current.map((p) =>
+        p.peerID === userId ? { ...p, isVideoOff } : p
+      );
+
+      setPeers((prev) =>
+        prev.map((p) =>
+          p.peerID === userId ? { ...p, isVideoOff } : p
+        )
+      );
     });
 
     socket.on("user-disconnected", (userId) => {
@@ -66,6 +122,7 @@ export default function useVideoCall(roomId) {
     return () => {
       socket.off("user-joined");
       socket.off("receiving-returned-signal");
+      socket.off("peer-camera-toggled");
       socket.off("user-disconnected");
     };
   }, [myStream]);
@@ -96,41 +153,36 @@ export default function useVideoCall(roomId) {
     });
 
     peer.signal(incomingSignal);
-
     return peer;
   }
 
   const toggleMute = () => {
     if (!myStream) return;
-    const enabled = myStream.getAudioTracks()[0].enabled;
-    myStream.getAudioTracks()[0].enabled = !enabled;
-    setIsMuted(!enabled);
+    const track = myStream.getAudioTracks()[0];
+    track.enabled = !track.enabled;
+    setIsMuted(!track.enabled);
   };
 
-//   const toggleVideo = () => {
-//     if (!myStream) return;
-//     const enabled = myStream.getVideoTracks()[0].enabled;
-//     myStream.getVideoTracks()[0].enabled = !enabled;
-//     setIsVideoOff(!enabled);
-//   };
+  const toggleVideo = () => {
+    if (!myStream) return;
+    const track = myStream.getVideoTracks()[0];
+    track.enabled = !track.enabled;
 
+    setIsVideoOff(!track.enabled);
 
-const toggleVideo = () => {
-  if (!myStream) return;
-  const track = myStream.getVideoTracks()[0];
-  track.enabled = !track.enabled;
-  setIsVideoOff(!track.enabled);
+    socket.emit("camera-toggle", {
+      userId: socket.id,
+      isVideoOff: !track.enabled,
+      roomId,
+    });
 
-  if (track.enabled && myVideoRef.current) {
-    myVideoRef.current.srcObject = null;
-    setTimeout(() => {
-      myVideoRef.current.srcObject = myStream;
-    }, 50);
-  }
-};
-
-
-
+    if (track.enabled && myVideoRef.current) {
+      myVideoRef.current.srcObject = null;
+      setTimeout(() => {
+        myVideoRef.current.srcObject = myStream;
+      }, 50);
+    }
+  };
 
   return {
     myVideoRef,
